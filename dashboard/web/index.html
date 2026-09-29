@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DocHand</title>
+<link rel="stylesheet" href="app.css">
+
+</head>
+<body>
+<header>
+  <div class="title"><span class="brand">DocHand</span><span class="dot" id="dot"></span><span id="stitle">Scanning session</span></div>
+  <div class="counters">
+    <div class="counter"><b id="c-pages">0</b><span>pages</span></div>
+    <div class="counter"><b id="c-docs">0</b><span>documents</span></div>
+    <div class="counter"><b id="c-ents">0</b><span>people &amp; orgs</span></div>
+    <div class="counter"><b id="c-issues">0</b><span>need attention</span></div>
+  </div>
+  <div class="seg" id="seg"><button data-view="board" class="on">Board</button><button data-view="files">Files</button></div>
+  <div class="viewer">Viewing as <select id="viewer"><option>Admin</option><option>Public</option></select></div>
+  <div class="controls">
+    <button id="play">▶ Replay</button><button data-speed="1" class="on">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button>
+  </div>
+</header>
+<div class="done-banner" id="banner"></div>
+<main>
+  <div class="col"><h2>Recently added</h2><div id="incoming"></div></div>
+  <div class="col"><h2>Documents</h2><div id="boxes"><div class="empty">Waiting for the first page…</div></div></div>
+  <div class="col">
+    <div class="panel"><h2>People &amp; organizations</h2><div id="entities"><div class="empty">None yet</div></div></div>
+    <div class="panel"><h2>Needs attention</h2><div id="issues"><div class="empty">Nothing yet</div></div></div>
+    <div class="panel"><h2>Agent</h2><div class="feed" id="feed"></div></div>
+  </div>
+</main>
+<section id="filesview">
+  <div class="side" id="fside"></div>
+  <div class="list" id="flist"></div>
+  <div class="insp" id="finsp"><div class="empty">Select a file</div></div>
+</section>
+<div class="phone" id="phone"><div class="lbl">iPhone · live</div><div class="scr"><img id="phoneimg" alt="">
+  <svg viewBox="0 0 1 1" preserveAspectRatio="none"><polygon id="pquad" points="" vector-effect="non-scaling-stroke" stroke-width="3"/></svg>
+  <div class="isl"></div><div class="cnt" id="pcnt">0</div><div class="off" id="poff"></div><div class="cue" id="pcue"></div><div class="btn" id="pbtn">Start</div></div></div>
+<div class="lightbox" id="lightbox"><div class="lbstage" id="lbstage"><img id="lbimg" alt=""><svg id="lbsvg" viewBox="0 0 1 1" preserveAspectRatio="none"></svg></div><div class="cap" id="lbcap"></div></div>
+<div class="wide" id="wide"><div class="wbox" id="wbox">
+  <button class="wclose" id="wclose" title="Close (Esc)">×</button>
+  <div class="wpic" id="wpic">
+    <div class="wview"><div class="wstage"><img id="wimg" alt=""><svg id="wsvg" viewBox="0 0 1 1" preserveAspectRatio="none"></svg></div></div>
+    <div class="wbar"><div id="wstrip" style="display:flex;gap:6px"></div><span class="sp"></span><button id="wboxbtn">Word boxes: on</button></div>
+  </div>
+  <div class="winfo" id="winfo"></div>
+</div></div>
+<div class="voicebar" id="voicebar"><span>🎙</span><span id="vtext"></span><span class="a" id="vaction"></span></div>
+
+<!-- Replay data for opening this file directly (git-ignored: it holds real letters). -->
+<script src="events.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>

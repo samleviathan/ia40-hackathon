@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Field Capture</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#15181d; --mut:#6b7280; --line:#e5e7eb; --ok:#16a34a; --bad:#dc2626; --warn:#d97706; --acc:#2563eb; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1115; --card:#181b21; --ink:#e8eaee; --mut:#9aa1ad; --line:#2a2f38; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.4 -apple-system, system-ui, sans-serif; }
+  header { position:sticky; top:0; z-index:2; background:var(--bg); border-bottom:1px solid var(--line); padding:12px 16px; display:flex; gap:24px; align-items:baseline; flex-wrap:wrap; }
+  h1 { font-size:16px; margin:0; }
+  .stat b { font-size:22px; font-variant-numeric: tabular-nums; }
+  .stat span { color:var(--mut); margin-left:4px; }
+  select { background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:4px; }
+  main { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:12px; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; cursor:pointer; }
+  .card.rejected { opacity:.55; border-color:var(--bad); }
+  .card.fresh { animation: pop .8s ease-out; }
+  @keyframes pop { from { box-shadow:0 0 0 4px var(--acc); } to { box-shadow:0 0 0 0 transparent; } }
+  .thumb { aspect-ratio: 3/4; background:#0002; display:flex; align-items:center; justify-content:center; }
+  .thumb img { width:100%; height:100%; object-fit:contain; }
+  .info { padding:8px 10px; }
+  .row { display:flex; justify-content:space-between; gap:6px; }
+  .num { font-weight:600; }
+  .tag { font-size:12px; padding:1px 6px; border-radius:99px; color:#fff; background:var(--ok); }
+  .tag.rejected { background:var(--bad); } .tag.blank { background:var(--warn); }
+  .mut { color:var(--mut); font-size:12px; font-variant-numeric: tabular-nums; }
+  dialog { width:min(1100px, 96vw); max-height:94vh; border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--ink); padding:0; }
+  .detail { display:grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+  @media (max-width: 800px) { .detail { grid-template-columns: 1fr; } }
+  .stage { position:relative; }
+  .stage img { width:100%; display:block; }
+  .stage svg { position:absolute; inset:0; width:100%; height:100%; }
+  .stage rect { fill: rgba(37,99,235,.12); stroke: rgba(37,99,235,.8); stroke-width: .0015; }
+  .side { padding:14px; overflow:auto; max-height:90vh; }
+  pre { white-space:pre-wrap; font-size:12px; }
+  label { user-select:none; }
+  .note { grid-column: 1 / -1; background:var(--card); border:1px solid var(--line); border-left:4px solid var(--acc); border-radius:10px; padding:10px 14px; display:flex; gap:12px; align-items:baseline; }
+  .note .said { font-size:16px; font-weight:600; }
+  .note audio { height:28px; margin-left:auto; }
+  #session { font-weight:600; }
+  #session.ok { color:var(--ok); } #session.bad { color:var(--bad); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Field Capture</h1>
+  <div class="stat"><b id="s-acc">0</b><span>pages</span></div>
+  <div class="stat"><b id="s-rej">0</b><span>retakes</span></div>
+  <div class="stat"><b id="s-lat">–</b><span>capture → laptop (median)</span></div>
+  <div class="stat"><b id="s-ocr">–</b><span>capture → OCR (median)</span></div>
+  <div class="stat"><b id="s-pace">–</b><span>sec / page</span></div>
+  <span id="session"></span>
+  <select id="batch"></select>
+</header>
+<main id="grid"></main>
+<dialog id="dlg"><div class="detail"><div class="stage" id="stage"></div><div class="side" id="side"></div></div></dialog>
+<script>
+const grid = document.getElementById('grid'), seen = new Set();
+let chosen = null, lastJSON = '';
+const med = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+const fmt = s => s == null ? '–' : s.toFixed(2) + 's';
+
+async function tick() {
+  try {
+    const r = await fetch('/api/pages' + (chosen ? '?batch=' + chosen : ''));
+    const d = await r.json();
+    const txt = JSON.stringify(d);
+    if (txt !== lastJSON) { lastJSON = txt; render(d); }
+  } catch (e) {}
+  setTimeout(tick, 600);
+}
+
+function render(d) {
+  const sel = document.getElementById('batch');
+  sel.innerHTML = d.batches.map(b => `<option ${b === d.batch ? 'selected' : ''}>${b}</option>`).join('');
+  const pages = d.pages.filter(p => p.meta && p.meta.type !== 'audio');
+  const notes = d.pages.filter(p => p.meta && p.meta.type === 'audio');
+  const acc = pages.filter(p => p.meta.status !== 'rejected');
+  document.getElementById('s-acc').textContent = acc.length;
+  document.getElementById('s-rej').textContent = pages.length - acc.length;
+  const lat = pages.filter(p => p.image_arrived).map(p => p.image_arrived - p.meta.timing.captured_at);
+  const ocr = pages.filter(p => p.ocr_arrived).map(p => p.ocr_arrived - p.meta.timing.captured_at);
+  document.getElementById('s-lat').textContent = fmt(med(lat));
+  document.getElementById('s-ocr').textContent = fmt(med(ocr));
+  const t = acc.map(p => p.meta.timing.captured_at).sort();
+  document.getElementById('s-pace').textContent = t.length > 1 ? ((t[t.length - 1] - t[0]) / (t.length - 1)).toFixed(1) : '–';
+
+  const ses = document.getElementById('session'), ev = d.events || {};
+  if (ev.session_end) {
+    const want = ev.session_end.page_count, ok = want === acc.length;
+    ses.className = ok ? 'ok' : 'bad';
+    ses.textContent = `Session ended · ${acc.length}/${want} pages received ${ok ? '✓' : '✗'} · ${notes.length} voice notes`;
+  } else if (ev.session_start) { ses.className = ''; ses.textContent = '● Live session'; }
+  else ses.textContent = '';
+
+  grid.innerHTML = '';
+  const tl = [...pages.map(p => ({t: p.meta.timing.captured_at, p})), ...notes.map(n => ({t: n.meta.t_start, n}))]
+    .sort((a, b) => b.t - a.t);
+  for (const {p, n} of tl) {
+    if (n) {
+      const el = document.createElement('div');
+      el.className = 'note' + (seen.has(n.id) ? '' : ' fresh');
+      seen.add(n.id);
+      const said = n.transcript != null ? (n.transcript || '(no speech)') : (n.transcribe_error ? 'transcription failed' : 'transcribing…');
+      el.innerHTML = `<span>🎙</span><span class="said"></span>
+        <span class="mut">${(n.meta.t_end - n.meta.t_start).toFixed(1)}s · ${n.transcribe_ms != null ? 'ASR ' + n.transcribe_ms + 'ms' : ''}</span>
+        ${n.audio_arrived ? `<audio controls preload="none" src="/files/${n.batch}/${n.id}.m4a"></audio>` : ''}`;
+      el.querySelector('.said').textContent = '“' + said + '”';
+      grid.appendChild(el);
+      continue;
+    }
+    const m = p.meta, st = m.status === 'rejected' ? 'rejected' : (m.reasons.includes('blank') ? 'blank' : 'ok');
+    const el = document.createElement('div');
+    el.className = 'card ' + m.status + (seen.has(p.id) ? '' : ' fresh');
+    seen.add(p.id);
+    const img = p.image_arrived ? `<img loading="lazy" src="/files/${p.batch}/${p.id}.jpg">` : '<span class="mut">uploading…</span>';
+    el.innerHTML = `<div class="thumb">${img}</div><div class="info">
+      <div class="row"><span class="num">Page ${m.number}</span><span class="tag ${st}">${m.status === 'rejected' ? m.reasons.join(', ') : (st === 'blank' ? 'blank' : 'ok')}</span></div>
+      <div class="mut">laptop +${p.image_arrived ? (p.image_arrived - m.timing.captured_at).toFixed(2) : '…'}s · OCR ${p.ocr_arrived ? '+' + (p.ocr_arrived - m.timing.captured_at).toFixed(2) + 's · ' + p.ocr_lines + ' lines' : (m.status === 'rejected' ? 'skipped' : '…')}</div>
+      <div class="mut">sharp ${m.metrics.sharpness.toFixed(0)} · glare ${(m.metrics.glare * 100).toFixed(2)}% · ${m.image.width}×${m.image.height}</div>
+      ${p.read_verdict ? `<div class="mut" style="color:${p.read_verdict.startsWith('DID NOT') ? 'var(--bad)' : 'inherit'}">OCR: ${p.read_verdict}${p.read_rate != null ? ' · ' + Math.round(p.read_rate * 100) + '% real words' : ''}</div>` : ''}</div>`;
+    el.onclick = () => open(p);
+    grid.appendChild(el);
+  }
+}
+
+async function open(p) {
+  const stage = document.getElementById('stage'), side = document.getElementById('side');
+  stage.innerHTML = `<img src="/files/${p.batch}/${p.id}.jpg">`;
+  let ocr = null;
+  if (p.ocr_arrived) ocr = await (await fetch(`/files/${p.batch}/${p.id}.ocr.json`)).json();
+  if (ocr) {
+    const W = p.meta.image.width, H = p.meta.image.height;
+    const rects = ocr.lines.flatMap(l => l.words.map(w => `<rect x="${w.box[0]}" y="${w.box[1]}" width="${w.box[2]}" height="${w.box[3]}"><title>${w.text}</title></rect>`)).join('');
+    stage.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 1 1" preserveAspectRatio="none">${rects}</svg>`);
+  }
+  side.innerHTML = `<h3>Page ${p.meta.number} · ${p.id}</h3>
+    <label><input type="checkbox" checked onchange="document.querySelector('#stage svg')?.style.setProperty('display', this.checked ? '' : 'none')"> word boxes</label>
+    <pre>${ocr ? ocr.lines.map(l => l.text).join('\n').replace(/</g, '&lt;') : '(no OCR yet)'}</pre>
+    <details><summary>metadata</summary><pre>${JSON.stringify(p.meta, null, 2)}</pre></details>
+    <p class="mut">image sha256 ${p.image_sha256 || ''}</p>`;
+  document.getElementById('dlg').showModal();
+}
+document.getElementById('dlg').addEventListener('click', e => { if (e.target.id === 'dlg') e.target.close(); });
+document.getElementById('batch').onchange = e => { chosen = e.target.value; lastJSON = ''; };
+tick();
+</script>
+</body>
+</html>

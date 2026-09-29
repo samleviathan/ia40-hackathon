@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "functions": {
+    "api/ingest/page.ts": { "maxDuration": 60 }
+  },
+  "rewrites": [
+    { "source": "/live", "destination": "/index.html" },
+    { "source": "/live/:path*", "destination": "/:path*" }
+  ]
+}

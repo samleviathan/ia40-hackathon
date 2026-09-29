@@ -1,0 +1,21 @@
+{
+  "name": "dochand-prod",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "rm -rf public && cp -R ../web public && rm -f public/events.js",
+    "db:migrate": "psql \"$DATABASE_URL\" -f db/schema.sql",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "@openai/agents": "^0.3.0",
+    "@vercel/blob": "^2.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}
